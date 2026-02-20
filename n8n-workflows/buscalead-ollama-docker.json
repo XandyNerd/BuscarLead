@@ -229,7 +229,7 @@
                     "parameters": [
                         {
                             "name": "x-webhook-secret",
-                            "value": "Xandy256912@"
+                            "value": "sua_chave_secreta_aqui"
                         }
                     ]
                 },
