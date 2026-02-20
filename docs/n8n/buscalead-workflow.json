@@ -1,0 +1,389 @@
+{
+    "name": "buscalead-fixed-v2",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "buscalead",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2.1,
+            "position": [
+                -208,
+                1232
+            ],
+            "id": "webhook-node",
+            "name": "Webhook",
+            "webhookId": "buscalead-webhook"
+        },
+        {
+            "parameters": {
+                "model": "gpt-4o-mini",
+                "options": {}
+            },
+            "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+            "typeVersion": 1.2,
+            "position": [
+                -144,
+                1440
+            ],
+            "id": "openai-model",
+            "name": "OpenAI Chat Model",
+            "credentials": {
+                "openAiApi": {
+                    "id": "qytnvyPw172ldp1J",
+                    "name": "OpenAi account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsonSchemaExample": "{\n  \"bairros\": [\n    \"Centro\",\n    \"Bairro A\",\n    \"Bairro B\"\n  ]\n}"
+            },
+            "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+            "typeVersion": 1.3,
+            "position": [
+                144,
+                1456
+            ],
+            "id": "parser-node",
+            "name": "Structured Output Parser"
+        },
+        {
+            "parameters": {
+                "promptType": "define",
+                "text": "=Liste os 5 bairros mais comerciais da cidade: {{ $json.body.city }}",
+                "hasOutputParser": true,
+                "messages": {
+                    "messageValues": [
+                        {
+                            "message": "Você é um especialista em geografia brasileira. Liste apenas os nomes dos bairros."
+                        }
+                    ]
+                }
+            },
+            "type": "@n8n/n8n-nodes-langchain.chainLlm",
+            "typeVersion": 1.7,
+            "position": [
+                -32,
+                1232
+            ],
+            "id": "gera-bairros-node",
+            "name": "Gera Bairros"
+        },
+        {
+            "parameters": {
+                "jsCode": "return $node[\"Gera Bairros\"].json.output.bairros.map(bairro => ({ json: { bairro } }));"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                288,
+                1232
+            ],
+            "id": "trata-dados-node",
+            "name": "Trata Bairros"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://google.serper.dev/maps",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "X-API-KEY",
+                            "value": "615d22fcb70260924985561e938f94e6b670156d"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "q",
+                            "value": "={{ $('Webhook').item.json.body.term }} no {{ $json.bairro }}, {{ $('Webhook').item.json.body.city }}"
+                        }
+                    ]
+                }
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                512,
+                1232
+            ],
+            "id": "busca-google-node",
+            "name": "Busca Google"
+        },
+        {
+            "parameters": {
+                "fieldToSplitOut": "places",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.splitOut",
+            "typeVersion": 1,
+            "position": [
+                736,
+                1232
+            ],
+            "id": "split-places-node",
+            "name": "Extrai Lugares"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict",
+                        "version": 2
+                    },
+                    "conditions": [
+                        {
+                            "id": "website-check",
+                            "leftValue": "={{ $json.website }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "string",
+                                "operation": "exists",
+                                "singleValue": true
+                            }
+                        }
+                    ]
+                }
+            },
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.2,
+            "position": [
+                960,
+                1232
+            ],
+            "id": "if-website-node",
+            "name": "Tem Website?"
+        },
+        {
+            "parameters": {
+                "url": "={{ $json.website }}",
+                "onError": "continueRegularOutput"
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1184,
+                1120
+            ],
+            "id": "scrape-node",
+            "name": "Scrape Website"
+        },
+        {
+            "parameters": {
+                "jsCode": "const text = $json.data || \"\";\n// Regex mais robusta que evita pegar nomes de arquivos de imagem\nconst emails = [...new Set(text.match(/[a-zA-Z0-9._%+-]+@(?![a-zA-Z0-9.-]+\\.(?:png|jpg|jpeg|gif|webp|svg|2x))[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/g) || [])];\n\nconst rawTitle = $node[\"Extrai Lugares\"].json.title || \"\";\n// Limpa o nome removendo o que vem depois de \" - \" se parecer um endereço\nlet name = rawTitle.split(\" - \")[0].trim();\n\nreturn { \n  name: name,\n  phone: $node[\"Extrai Lugares\"].json.phoneNumber,\n  address: $node[\"Extrai Lugares\"].json.address,\n  neighborhood: $node[\"Trata Bairros\"].json.bairro,\n  city: $node[\"Webhook\"].json.body.city,\n  website: $node[\"Extrai Lugares\"].json.website,\n  rating: $node[\"Extrai Lugares\"].json.rating,\n  email: emails[0] || null \n};"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1408,
+                1120
+            ],
+            "id": "extract-email-node",
+            "name": "Finaliza Lead com Email"
+        },
+        {
+            "parameters": {
+                "jsCode": "const rawTitle = $json.title || \"\";\nlet name = rawTitle.split(\" - \")[0].trim();\n\nreturn { \n  name: name, \n  phone: $json.phoneNumber,\n  address: $json.address,\n  neighborhood: $node[\"Trata Bairros\"].json.bairro,\n  city: $node[\"Webhook\"].json.body.city,\n  website: $json.website,\n  rating: $json.rating,\n  email: null \n};"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1184,
+                1344
+            ],
+            "id": "finaliza-lead-node",
+            "name": "Finaliza Lead sem Email"
+        },
+        {
+            "parameters": {
+                "aggregate": "aggregateAllItemData",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.aggregate",
+            "typeVersion": 1,
+            "position": [
+                1700,
+                1232
+            ],
+            "id": "aggregate-node",
+            "name": "Agrupa Tudo"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $('Webhook').first().json.body.callback_url }}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "x-webhook-secret",
+                            "value": "Xandy256912@"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"search_id\": \"{{ $('Webhook').first().json.body.search_id }}\",\n  \"leads\": {{ JSON.stringify($json.data) }}\n}",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1950,
+                1232
+            ],
+            "id": "callback-node",
+            "name": "Envia para o Site"
+        }
+    ],
+    "connections": {
+        "Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Gera Bairros",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "OpenAI Chat Model": {
+            "ai_languageModel": [
+                [
+                    {
+                        "node": "Gera Bairros",
+                        "type": "ai_languageModel",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Structured Output Parser": {
+            "ai_outputParser": [
+                [
+                    {
+                        "node": "Gera Bairros",
+                        "type": "ai_outputParser",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Gera Bairros": {
+            "main": [
+                [
+                    {
+                        "node": "Trata Bairros",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Trata Bairros": {
+            "main": [
+                [
+                    {
+                        "node": "Busca Google",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Busca Google": {
+            "main": [
+                [
+                    {
+                        "node": "split-places-node",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "split-places-node": {
+            "main": [
+                [
+                    {
+                        "node": "if-website-node",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "if-website-node": {
+            "main": [
+                [
+                    {
+                        "node": "scrape-node",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "finaliza-lead-node",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "scrape-node": {
+            "main": [
+                [
+                    {
+                        "node": "extract-email-node",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "extract-email-node": {
+            "main": [
+                [
+                    {
+                        "node": "aggregate-node",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "finaliza-lead-node": {
+            "main": [
+                [
+                    {
+                        "node": "aggregate-node",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "aggregate-node": {
+            "main": [
+                [
+                    {
+                        "node": "callback-node",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}
