@@ -34,7 +34,7 @@ export async function updateSession(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     // Redirect to login if not authenticated (except for public routes)
-    const publicRoutes = ['/login', '/signup', '/auth/callback']
+    const publicRoutes = ['/login', '/signup', '/auth/callback', '/api/webhooks']
     const isPublicRoute = publicRoutes.some(route =>
         request.nextUrl.pathname.startsWith(route)
     )

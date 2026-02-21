@@ -80,11 +80,7 @@ export async function POST(request: Request) {
 }
 
 function getBaseUrl(request: Request): string {
-    const url = new URL(request.url)
-    const host = url.host
-    // Se estiver em localhost, troca para host.docker.internal para o n8n (no Docker) conseguir falar com o site
-    if (host.includes('localhost')) {
-        return `${url.protocol}//host.docker.internal:${url.port || '3000'}`
-    }
-    return `${url.protocol}//${host}`
+    const protocol = request.headers.get('x-forwarded-proto') || 'http'
+    const host = request.headers.get('host') || 'localhost:3000'
+    return `${protocol}://${host}`
 }
