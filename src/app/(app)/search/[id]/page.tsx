@@ -193,29 +193,29 @@ export default function SearchResultsPage() {
                         <tbody>
                             {leads.map((lead) => (
                                 <tr key={lead.id}>
-                                    <td>
+                                    <td data-label="Nome">
                                         <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
                                             {lead.name}
                                         </div>
                                     </td>
-                                    <td>
+                                    <td data-label="Telefone">
                                         <div style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
                                             {formatPhone(lead.phone)}
                                         </div>
                                     </td>
-                                    <td>
+                                    <td data-label="Bairro">
                                         <span className="badge badge-secondary" style={{ fontSize: '0.75rem' }}>
                                             {lead.neighborhood || '—'}
                                         </span>
                                     </td>
-                                    <td>
+                                    <td data-label="Avaliação">
                                         {lead.rating ? (
                                             <span style={{ color: '#fbbf24', fontWeight: 600 }}>
                                                 ⭐ {lead.rating}
                                             </span>
                                         ) : '—'}
                                     </td>
-                                    <td>
+                                    <td data-label="Website">
                                         {lead.website ? (
                                             <a
                                                 href={lead.website}
@@ -227,10 +227,10 @@ export default function SearchResultsPage() {
                                             </a>
                                         ) : '—'}
                                     </td>
-                                    <td style={{ fontSize: '0.85rem', color: 'var(--color-primary-light)' }}>
+                                    <td data-label="E-mail" style={{ fontSize: '0.85rem', color: 'var(--color-primary-light)' }}>
                                         {lead.email_1 || '—'}
                                     </td>
-                                    <td>
+                                    <td data-label="">
                                         {lead.phone && (
                                             <a
                                                 href={getWhatsAppLink(lead.phone, lead.name)}

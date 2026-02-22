@@ -45,15 +45,20 @@ export default async function DashboardPage() {
                 </div>
             </div>
 
-            <div className="card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    <h2>Buscas Recentes</h2>
-                    <Link href="/search" className="btn btn-primary btn-sm">
-                        + Nova Busca
-                    </Link>
-                </div>
+            {/* Nova Busca — standalone button */}
+            <div className="dashboard-action">
+                <Link href="/search" className="btn btn-primary btn-new-search">
+                    🔍 Nova Busca
+                </Link>
+            </div>
 
-                {!recentSearches || recentSearches.length === 0 ? (
+            {/* Buscas Recentes */}
+            <div className="dashboard-section-title">
+                <h2>Buscas Recentes</h2>
+            </div>
+
+            {!recentSearches || recentSearches.length === 0 ? (
+                <div className="card">
                     <div className="empty-state">
                         <div className="empty-icon">🔍</div>
                         <h3>Nenhuma busca ainda</h3>
@@ -62,43 +67,78 @@ export default async function DashboardPage() {
                             Fazer Primeira Busca
                         </Link>
                     </div>
-                ) : (
-                    <div className="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Termo</th>
-                                    <th>Cidade</th>
-                                    <th>Status</th>
-                                    <th>Leads</th>
-                                    <th>Data</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {recentSearches.map((search) => (
-                                    <tr key={search.id}>
-                                        <td><strong>{search.term}</strong></td>
-                                        <td>{search.city}</td>
-                                        <td>
-                                            <span className={`badge badge-${search.status}`}>
-                                                {search.status}
-                                            </span>
-                                        </td>
-                                        <td>{search.leads_count || 0}</td>
-                                        <td>{new Date(search.created_at).toLocaleDateString('pt-BR')}</td>
-                                        <td>
-                                            <Link href={`/search/${search.id}`} className="btn btn-secondary btn-sm">
-                                                Ver leads
-                                            </Link>
-                                        </td>
+                </div>
+            ) : (
+                <>
+                    {/* Desktop: Table view */}
+                    <div className="desktop-only">
+                        <div className="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Termo</th>
+                                        <th>Cidade</th>
+                                        <th>Status</th>
+                                        <th>Leads</th>
+                                        <th>Data</th>
+                                        <th></th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {recentSearches.map((search) => (
+                                        <tr key={search.id}>
+                                            <td><strong>{search.term}</strong></td>
+                                            <td>{search.city}</td>
+                                            <td>
+                                                <span className={`badge badge-${search.status}`}>
+                                                    {search.status}
+                                                </span>
+                                            </td>
+                                            <td>{search.leads_count || 0}</td>
+                                            <td>{new Date(search.created_at).toLocaleDateString('pt-BR')}</td>
+                                            <td>
+                                                <Link href={`/search/${search.id}`} className="btn btn-secondary btn-sm">
+                                                    Ver mais
+                                                </Link>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                )}
-            </div>
+
+                    {/* Mobile: Individual cards */}
+                    <div className="mobile-only search-cards">
+                        {recentSearches.map((search) => (
+                            <div key={search.id} className="search-card">
+                                <div className="search-card-title">
+                                    {search.term} <span className="search-card-em">em</span> {search.city}
+                                </div>
+                                <div className="search-card-details">
+                                    <div className="search-card-row">
+                                        <span className="search-card-label">Status</span>
+                                        <span className={`badge badge-${search.status}`}>
+                                            {search.status}
+                                        </span>
+                                    </div>
+                                    <div className="search-card-row">
+                                        <span className="search-card-label">Leads</span>
+                                        <span className="search-card-value">{search.leads_count || 0}</span>
+                                    </div>
+                                    <div className="search-card-row">
+                                        <span className="search-card-label">Data</span>
+                                        <span className="search-card-value">{new Date(search.created_at).toLocaleDateString('pt-BR')}</span>
+                                    </div>
+                                </div>
+                                <Link href={`/search/${search.id}`} className="btn btn-secondary search-card-btn">
+                                    Ver mais
+                                </Link>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
         </>
     )
 }
