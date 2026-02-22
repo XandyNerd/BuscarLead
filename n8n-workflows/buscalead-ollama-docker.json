@@ -4,7 +4,7 @@
         {
             "parameters": {
                 "httpMethod": "POST",
-                "path": "buscalead",
+                "path": "buscalead-v2",
                 "options": {}
             },
             "type": "n8n-nodes-base.webhook",
@@ -15,11 +15,11 @@
             ],
             "id": "webhook-node",
             "name": "Webhook",
-            "webhookId": "buscalead-webhook"
+            "webhookId": "buscalead-v2"
         },
         {
             "parameters": {
-                "jsonSchemaExample": "{\n  \"bairros\": [\n    \"Centro\",\n    \"Bairro A\",\n    \"Bairro B\"\n  ]\n}"
+                "jsonSchemaExample": "{\n  \"bairros\": [\n    \"Centro\",\n    \"Bairro A\",\n    \"Bairro B\",\n    \"Bairro C\",\n    \"Bairro D\"\n  ]\n}"
             },
             "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
             "typeVersion": 1.3,
@@ -33,7 +33,7 @@
         {
             "parameters": {
                 "promptType": "define",
-                "text": "=Liste os 5 bairros mais comerciais da cidade: {{ $json.body.city }}",
+                "text": "=Liste os 15 bairros mais comerciais e movimentados da cidade: {{ $json.body.city }}. Inclua bairros centrais, comerciais e residenciais com comércio.",
                 "hasOutputParser": true,
                 "messages": {
                     "messageValues": [
@@ -54,7 +54,7 @@
         },
         {
             "parameters": {
-                "model": "llama3:latest"
+                "model": "llama3.2"
             },
             "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
             "typeVersion": 1,
@@ -73,7 +73,7 @@
         },
         {
             "parameters": {
-                "jsCode": "return $node[\"Gera Bairros\"].json.output.bairros.map(bairro => ({ json: { bairro } }));"
+                "jsCode": "return items[0].json.output.bairros.map(bairro => {\n  return { json: { bairro } };\n});"
             },
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
@@ -93,7 +93,7 @@
                     "parameters": [
                         {
                             "name": "X-API-KEY",
-                            "value": "sua_chave_serper"
+                            "value": "615d22fcb70260924985561e938f94e6b670156d"
                         }
                     ]
                 },
@@ -105,10 +105,15 @@
                             "value": "={{ $('Webhook').item.json.body.term }} no {{ $json.bairro }}, {{ $('Webhook').item.json.body.city }}"
                         },
                         {
-                            "name": "num",
-                            "value": "100"
+                            "name": "hl",
+                            "value": "pt-br"
                         }
                     ]
+                },
+                "options": {
+                    "redirect": {
+                        "redirect": {}
+                    }
                 }
             },
             "type": "n8n-nodes-base.httpRequest",
@@ -122,126 +127,40 @@
         },
         {
             "parameters": {
-                "fieldToSplitOut": "places",
-                "options": {}
-            },
-            "type": "n8n-nodes-base.splitOut",
-            "typeVersion": 1,
-            "position": [
-                736,
-                1232
-            ],
-            "id": "split-places-node",
-            "name": "Extrai Lugares"
-        },
-        {
-            "parameters": {
-                "conditions": {
-                    "options": {
-                        "caseSensitive": true,
-                        "leftValue": "",
-                        "typeValidation": "strict",
-                        "version": 2
-                    },
-                    "conditions": [
-                        {
-                            "id": "website-check",
-                            "leftValue": "={{ $json.website }}",
-                            "rightValue": "",
-                            "operator": {
-                                "type": "string",
-                                "operation": "exists",
-                                "singleValue": true
-                            }
-                        }
-                    ]
-                }
-            },
-            "type": "n8n-nodes-base.if",
-            "typeVersion": 2.2,
-            "position": [
-                960,
-                1232
-            ],
-            "id": "if-website-node",
-            "name": "Tem Website?"
-        },
-        {
-            "parameters": {
-                "url": "={{ $json.website }}",
-                "onError": "continueRegularOutput"
-            },
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.2,
-            "position": [
-                1184,
-                1120
-            ],
-            "id": "scrape-node",
-            "name": "Scrape Website"
-        },
-        {
-            "parameters": {
-                "jsCode": "const text = $json.data || \"\";\nconst emails = [...new Set(text.match(/[a-zA-Z0-9._%+-]+@(?![a-zA-Z0-9.-]+\\.(?:png|jpg|jpeg|gif|webp|svg|2x))[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/g) || [])];\n\nconst rawTitle = $node[\"Extrai Lugares\"].json.title || \"\";\nlet name = rawTitle.split(\" - \")[0].trim();\n\nreturn { \n  name: name,\n  phone: $node[\"Extrai Lugares\"].json.phoneNumber,\n  address: $node[\"Extrai Lugares\"].json.address,\n  neighborhood: $node[\"Trata Bairros\"].json.bairro,\n  city: $node[\"Webhook\"].json.body.city,\n  website: $node[\"Extrai Lugares\"].json.website,\n  rating: $node[\"Extrai Lugares\"].json.rating,\n  email: emails[0] || null \n};"
+                "mode": "runOnceForAllItems",
+                "jsCode": "// Collect ALL places from ALL Busca Google results\nconst allPlaces = [];\nconst seen = new Set();\n\nfor (const item of $input.all()) {\n  const places = item.json.places || [];\n  for (const place of places) {\n    const phone = (place.phoneNumber || '').trim();\n    // Skip places without phone (unusable leads)\n    if (!phone) continue;\n    // Deduplicate by phone\n    if (seen.has(phone)) continue;\n    seen.add(phone);\n    allPlaces.push(place);\n  }\n}\n\n// Return ONE single item with all leads inside\nreturn [{\n  json: {\n    search_id: $('Webhook').first().json.body.search_id,\n    callback_url: $('Webhook').first().json.body.callback_url,\n    leads: allPlaces,\n    total: allPlaces.length\n  }\n}];"
             },
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                1408,
-                1120
-            ],
-            "id": "extract-email-node",
-            "name": "Finaliza Lead com Email"
-        },
-        {
-            "parameters": {
-                "jsCode": "const rawTitle = $json.title || \"\";\nlet name = rawTitle.split(\" - \")[0].trim();\n\nreturn { \n  name: name, \n  phone: $json.phoneNumber,\n  address: $json.address,\n  neighborhood: $node[\"Trata Bairros\"].json.bairro,\n  city: $node[\"Webhook\"].json.body.city,\n  website: $json.website,\n  rating: $json.rating,\n  email: null \n};"
-            },
-            "type": "n8n-nodes-base.code",
-            "typeVersion": 2,
-            "position": [
-                1184,
-                1344
-            ],
-            "id": "finaliza-lead-node",
-            "name": "Finaliza Lead sem Email"
-        },
-        {
-            "parameters": {
-                "aggregate": "aggregateAllItemData",
-                "options": {}
-            },
-            "type": "n8n-nodes-base.aggregate",
-            "typeVersion": 1,
-            "position": [
-                1700,
+                768,
                 1232
             ],
-            "id": "aggregate-node",
-            "name": "Agrupa Tudo"
+            "id": "agrega-leads-node",
+            "name": "Agrega Leads"
         },
         {
             "parameters": {
                 "method": "POST",
-                "url": "={{ $('Webhook').first().json.body.callback_url }}",
+                "url": "={{ $json.callback_url }}",
                 "sendHeaders": true,
                 "headerParameters": {
                     "parameters": [
                         {
                             "name": "x-webhook-secret",
-                            "value": "sua_chave_secreta_aqui"
+                            "value": "Xandy256912@"
                         }
                     ]
                 },
                 "sendBody": true,
                 "specifyBody": "json",
-                "jsonBody": "={\n  \"search_id\": \"{{ $('Webhook').first().json.body.search_id }}\",\n  \"leads\": {{ JSON.stringify($json.data) }}\n}",
+                "jsonBody": "={\n  \"search_id\": \"{{ $json.search_id }}\",\n  \"leads\": {{ JSON.stringify($json.leads) }}\n}",
                 "options": {}
             },
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
             "position": [
-                1950,
+                1024,
                 1232
             ],
             "id": "callback-node",
@@ -308,85 +227,32 @@
             "main": [
                 [
                     {
-                        "node": "split-places-node",
+                        "node": "Agrega Leads",
                         "type": "main",
                         "index": 0
                     }
                 ]
             ]
         },
-        "split-places-node": {
+        "Agrega Leads": {
             "main": [
                 [
                     {
-                        "node": "if-website-node",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "if-website-node": {
-            "main": [
-                [
-                    {
-                        "node": "scrape-node",
-                        "type": "main",
-                        "index": 0
-                    }
-                ],
-                [
-                    {
-                        "node": "finaliza-lead-node",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "scrape-node": {
-            "main": [
-                [
-                    {
-                        "node": "extract-email-node",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "extract-email-node": {
-            "main": [
-                [
-                    {
-                        "node": "aggregate-node",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "finaliza-lead-node": {
-            "main": [
-                [
-                    {
-                        "node": "aggregate-node",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "aggregate-node": {
-            "main": [
-                [
-                    {
-                        "node": "callback-node",
+                        "node": "Envia para o Site",
                         "type": "main",
                         "index": 0
                     }
                 ]
             ]
         }
-    }
+    },
+    "active": false,
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "meta": {
+        "instanceId": "buscalead-ollama-v2"
+    },
+    "id": "buscalead-v2",
+    "tags": []
 }

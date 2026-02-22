@@ -39,53 +39,90 @@ export async function POST(request: Request) {
             )
         }
 
-        // Insert leads
+        // Insert leads with deduplication
+        let savedCount = 0
         if (leads && Array.isArray(leads) && leads.length > 0) {
-            const leadsToInsert = leads.map((lead: Record<string, unknown>) => ({
-                search_id,
-                user_id: search.user_id,
-                name: lead.name || lead.title || '',
-                phone: lead.phone || lead.phoneNumber || '',
-                address: lead.address || '',
-                neighborhood: lead.neighborhood || lead.bairro || '',
-                city: lead.city || lead.cidade || '',
-                rating: lead.rating || null,
-                website: lead.website || null,
-                email_1: lead.email_1 || lead.email || null,
-                email_2: lead.email_2 || null,
-                status: 'novo',
-            }))
+            // 1. Deduplicate within this batch by phone number
+            const seen = new Set<string>()
+            const uniqueLeads = leads.filter((lead: Record<string, unknown>) => {
+                const phone = String(lead.phone || lead.phoneNumber || '').trim()
+                if (!phone || seen.has(phone)) return false
+                seen.add(phone)
+                return true
+            })
 
-            const { error: insertError } = await supabase
+            // 2. Check which phones already exist for this search
+            const phones = uniqueLeads.map((l: Record<string, unknown>) =>
+                String(l.phone || l.phoneNumber || '').trim()
+            )
+            const { data: existing } = await supabase
                 .from('leads')
-                .insert(leadsToInsert)
+                .select('phone')
+                .eq('search_id', search_id)
+                .in('phone', phones)
 
-            if (insertError) {
-                console.error('Erro ao inserir leads:', insertError)
-                await supabase
-                    .from('searches')
-                    .update({ status: 'erro' })
-                    .eq('id', search_id)
+            const existingPhones = new Set((existing || []).map((e: { phone: string }) => e.phone))
 
-                return NextResponse.json(
-                    { error: 'Erro ao salvar leads.' },
-                    { status: 500 }
-                )
+            // 3. Only insert truly new leads
+            const newLeads = uniqueLeads
+                .filter((lead: Record<string, unknown>) => {
+                    const phone = String(lead.phone || lead.phoneNumber || '').trim()
+                    return !existingPhones.has(phone)
+                })
+                .map((lead: Record<string, unknown>) => ({
+                    search_id,
+                    user_id: search.user_id,
+                    name: String(lead.name || lead.title || '').split(/\s*[\|\-]\s*/)[0].trim(),
+                    phone: String(lead.phone || lead.phoneNumber || '').trim(),
+                    address: String(lead.address || ''),
+                    neighborhood: String(lead.neighborhood || lead.bairro || ''),
+                    city: String(lead.city || lead.cidade || ''),
+                    rating: lead.rating || null,
+                    website: lead.website || null,
+                    email_1: lead.email_1 || lead.email || (Array.isArray(lead.emails) ? lead.emails[0] : null) || null,
+                    email_2: lead.email_2 || (Array.isArray(lead.emails) ? lead.emails[1] : null) || null,
+                    status: 'novo',
+                }))
+
+            if (newLeads.length > 0) {
+                const { error: insertError } = await supabase
+                    .from('leads')
+                    .insert(newLeads)
+
+                if (insertError) {
+                    console.error('Erro ao inserir leads:', insertError)
+                    await supabase
+                        .from('searches')
+                        .update({ status: 'erro' })
+                        .eq('id', search_id)
+
+                    return NextResponse.json(
+                        { error: 'Erro ao salvar leads.' },
+                        { status: 500 }
+                    )
+                }
+                savedCount = newLeads.length
             }
         }
+
+        // Count total unique leads for this search
+        const { count } = await supabase
+            .from('leads')
+            .select('*', { count: 'exact', head: true })
+            .eq('search_id', search_id)
 
         // Update search status
         await supabase
             .from('searches')
             .update({
                 status: 'concluido',
-                leads_count: leads?.length || 0,
+                leads_count: count || 0,
             })
             .eq('id', search_id)
 
         return NextResponse.json({
             success: true,
-            message: `${leads?.length || 0} leads salvos com sucesso.`,
+            message: `${savedCount} leads salvos com sucesso (${count} total).`,
         })
     } catch (err) {
         console.error('Webhook error:', err)
