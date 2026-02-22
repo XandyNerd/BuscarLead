@@ -43,70 +43,119 @@ export default async function LeadsPage() {
                     </div>
                 </div>
             ) : (
-                <div className="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style={{ width: '30%' }}>Nome</th>
-                                <th style={{ width: '15%' }}>Telefone</th>
-                                <th style={{ width: '10%' }}>Bairro</th>
-                                <th style={{ width: '10%' }}>Cidade</th>
-                                <th style={{ width: '10%' }}>Avaliação</th>
-                                <th style={{ width: '15%' }}>E-mail</th>
-                                <th style={{ width: '10%' }}>Ação</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {leads.map((lead) => (
-                                <tr key={lead.id}>
-                                    <td data-label="Nome">
-                                        <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                                            {lead.name}
-                                        </div>
-                                    </td>
-                                    <td data-label="Telefone">
-                                        <div style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
-                                            {lead.phone || '—'}
-                                        </div>
-                                    </td>
-                                    <td data-label="Bairro">
-                                        <span className="badge badge-secondary" style={{ fontSize: '0.75rem' }}>
-                                            {lead.neighborhood || '—'}
-                                        </span>
-                                    </td>
-                                    <td data-label="Cidade">
-                                        <span style={{ fontSize: '0.85rem' }}>
-                                            {lead.city || '—'}
-                                        </span>
-                                    </td>
-                                    <td data-label="Avaliação">
-                                        {lead.rating ? (
-                                            <span style={{ color: '#fbbf24', fontWeight: 600 }}>
-                                                ⭐ {lead.rating}
-                                            </span>
-                                        ) : '—'}
-                                    </td>
-                                    <td data-label="E-mail" style={{ fontSize: '0.85rem', color: 'var(--color-primary-light)' }}>
-                                        {lead.email_1 || '—'}
-                                    </td>
-                                    <td data-label="">
-                                        {lead.phone && (
-                                            <a
-                                                href={getWhatsAppLink(lead.phone, lead.name)}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="btn-whatsapp"
-                                                style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
-                                            >
-                                                WhatsApp
-                                            </a>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                <>
+                    {/* Desktop: Table view */}
+                    <div className="desktop-only">
+                        <div className="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style={{ width: '5%' }}></th>
+                                        <th style={{ width: '25%' }}>Nome</th>
+                                        <th style={{ width: '15%' }}>Telefone</th>
+                                        <th style={{ width: '10%' }}>Bairro</th>
+                                        <th style={{ width: '10%' }}>Cidade</th>
+                                        <th style={{ width: '10%' }}>Avaliação</th>
+                                        <th style={{ width: '15%' }}>E-mail</th>
+                                        <th style={{ width: '10%' }}>Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {leads.map((lead) => (
+                                        <tr key={lead.id}>
+                                            <td>
+                                                <div className="lead-thumb">
+                                                    {lead.photo_url ? (
+                                                        <img src={lead.photo_url} alt={lead.name} />
+                                                    ) : (
+                                                        <span>📍</span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                                                    {lead.name}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
+                                                    {lead.phone || '—'}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span className="badge badge-secondary" style={{ fontSize: '0.75rem' }}>
+                                                    {lead.neighborhood || '—'}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span style={{ fontSize: '0.85rem' }}>
+                                                    {lead.city || '—'}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {lead.rating ? (
+                                                    <span style={{ color: '#fbbf24', fontWeight: 600 }}>
+                                                        ⭐ {lead.rating}
+                                                    </span>
+                                                ) : '—'}
+                                            </td>
+                                            <td style={{ fontSize: '0.85rem', color: 'var(--color-primary-light)' }}>
+                                                {lead.email_1 || '—'}
+                                            </td>
+                                            <td>
+                                                {lead.phone && (
+                                                    <a
+                                                        href={getWhatsAppLink(lead.phone, lead.name)}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="btn-whatsapp"
+                                                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                                                    >
+                                                        WhatsApp
+                                                    </a>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Mobile: Photo cards */}
+                    <div className="mobile-only lead-cards-grid">
+                        {leads.map((lead) => (
+                            <div key={lead.id} className="lead-photo-card">
+                                <div className="lead-photo-card-img">
+                                    {lead.photo_url ? (
+                                        <img src={lead.photo_url} alt={lead.name} />
+                                    ) : (
+                                        <div className="lead-photo-placeholder">📍</div>
+                                    )}
+                                    {lead.rating && (
+                                        <span className="lead-photo-rating">⭐ {lead.rating}</span>
+                                    )}
+                                </div>
+                                <div className="lead-photo-card-info">
+                                    <div className="lead-photo-card-name">{lead.name}</div>
+                                    <div className="lead-photo-card-location">
+                                        {lead.neighborhood || lead.city || '—'}
+                                    </div>
+                                    {lead.phone && (
+                                        <a
+                                            href={getWhatsAppLink(lead.phone, lead.name)}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="btn-whatsapp lead-card-whatsapp"
+                                        >
+                                            💬 WhatsApp
+                                        </a>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </>
             )}
         </>
     )

@@ -16,6 +16,7 @@ interface Lead {
     website: string | null
     email_1: string | null
     email_2: string | null
+    photo_url: string | null
     status: string
 }
 
@@ -36,11 +37,11 @@ export default function SearchResultsPage() {
     const [search, setSearch] = useState<Search | null>(null)
     const [leads, setLeads] = useState<Lead[]>([])
     const [loading, setLoading] = useState(true)
+    const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
 
     useEffect(() => {
         fetchData()
 
-        // Realtime subscription for search status updates
         const searchChannel = supabase
             .channel(`search-${searchId}`)
             .on(
@@ -60,7 +61,6 @@ export default function SearchResultsPage() {
             )
             .subscribe()
 
-        // Realtime subscription for new leads
         const leadsChannel = supabase
             .channel(`leads-${searchId}`)
             .on(
@@ -83,6 +83,16 @@ export default function SearchResultsPage() {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchId])
+
+    // Lock body scroll when modal is open
+    useEffect(() => {
+        if (selectedLead) {
+            document.body.style.overflow = 'hidden'
+        } else {
+            document.body.style.overflow = ''
+        }
+        return () => { document.body.style.overflow = '' }
+    }, [selectedLead])
 
     async function fetchData() {
         setLoading(true)
@@ -177,77 +187,122 @@ export default function SearchResultsPage() {
             )}
 
             {leads.length > 0 ? (
-                <div className="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style={{ width: '30%' }}>Nome</th>
-                                <th style={{ width: '15%' }}>Telefone</th>
-                                <th style={{ width: '10%' }}>Bairro</th>
-                                <th style={{ width: '10%' }}>Avaliação</th>
-                                <th style={{ width: '12%' }}>Website</th>
-                                <th style={{ width: '13%' }}>E-mail</th>
-                                <th style={{ width: '10%' }}>Ação</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {leads.map((lead) => (
-                                <tr key={lead.id}>
-                                    <td data-label="Nome">
-                                        <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                                            {lead.name}
-                                        </div>
-                                    </td>
-                                    <td data-label="Telefone">
-                                        <div style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
-                                            {formatPhone(lead.phone)}
-                                        </div>
-                                    </td>
-                                    <td data-label="Bairro">
-                                        <span className="badge badge-secondary" style={{ fontSize: '0.75rem' }}>
-                                            {lead.neighborhood || '—'}
-                                        </span>
-                                    </td>
-                                    <td data-label="Avaliação">
-                                        {lead.rating ? (
-                                            <span style={{ color: '#fbbf24', fontWeight: 600 }}>
-                                                ⭐ {lead.rating}
-                                            </span>
-                                        ) : '—'}
-                                    </td>
-                                    <td data-label="Website">
-                                        {lead.website ? (
-                                            <a
-                                                href={lead.website}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                style={{ color: 'var(--color-primary-light)', fontSize: '0.85rem' }}
-                                            >
-                                                Abrir
-                                            </a>
-                                        ) : '—'}
-                                    </td>
-                                    <td data-label="E-mail" style={{ fontSize: '0.85rem', color: 'var(--color-primary-light)' }}>
-                                        {lead.email_1 || '—'}
-                                    </td>
-                                    <td data-label="">
-                                        {lead.phone && (
-                                            <a
-                                                href={getWhatsAppLink(lead.phone, lead.name)}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="btn-whatsapp"
-                                                style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
-                                            >
-                                                WhatsApp
-                                            </a>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                <>
+                    {/* Desktop: Table view */}
+                    <div className="desktop-only">
+                        <div className="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style={{ width: '5%' }}></th>
+                                        <th style={{ width: '25%' }}>Nome</th>
+                                        <th style={{ width: '15%' }}>Telefone</th>
+                                        <th style={{ width: '10%' }}>Bairro</th>
+                                        <th style={{ width: '10%' }}>Avaliação</th>
+                                        <th style={{ width: '12%' }}>Website</th>
+                                        <th style={{ width: '13%' }}>E-mail</th>
+                                        <th style={{ width: '10%' }}>Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {leads.map((lead) => (
+                                        <tr key={lead.id} onClick={() => setSelectedLead(lead)} style={{ cursor: 'pointer' }}>
+                                            <td>
+                                                <div className="lead-thumb">
+                                                    {lead.photo_url ? (
+                                                        <img src={lead.photo_url} alt={lead.name} />
+                                                    ) : (
+                                                        <span>📍</span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                                                    {lead.name}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
+                                                    {formatPhone(lead.phone)}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span className="badge badge-secondary" style={{ fontSize: '0.75rem' }}>
+                                                    {lead.neighborhood || '—'}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {lead.rating ? (
+                                                    <span style={{ color: '#fbbf24', fontWeight: 600 }}>
+                                                        ⭐ {lead.rating}
+                                                    </span>
+                                                ) : '—'}
+                                            </td>
+                                            <td>
+                                                {lead.website ? (
+                                                    <a
+                                                        href={lead.website}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        style={{ color: 'var(--color-primary-light)', fontSize: '0.85rem' }}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        Abrir
+                                                    </a>
+                                                ) : '—'}
+                                            </td>
+                                            <td style={{ fontSize: '0.85rem', color: 'var(--color-primary-light)' }}>
+                                                {lead.email_1 || '—'}
+                                            </td>
+                                            <td>
+                                                {lead.phone && (
+                                                    <a
+                                                        href={getWhatsAppLink(lead.phone, lead.name)}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="btn-whatsapp"
+                                                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        WhatsApp
+                                                    </a>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Mobile: Photo cards grid */}
+                    <div className="mobile-only lead-cards-grid">
+                        {leads.map((lead) => (
+                            <div
+                                key={lead.id}
+                                className="lead-photo-card"
+                                onClick={() => setSelectedLead(lead)}
+                            >
+                                <div className="lead-photo-card-img">
+                                    {lead.photo_url ? (
+                                        <img src={lead.photo_url} alt={lead.name} />
+                                    ) : (
+                                        <div className="lead-photo-placeholder">📍</div>
+                                    )}
+                                    {lead.rating && (
+                                        <span className="lead-photo-rating">⭐ {lead.rating}</span>
+                                    )}
+                                </div>
+                                <div className="lead-photo-card-info">
+                                    <div className="lead-photo-card-name">{lead.name}</div>
+                                    <div className="lead-photo-card-location">
+                                        {lead.neighborhood || lead.city || '—'}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </>
             ) : search.status === 'concluido' ? (
                 <div className="empty-state">
                     <div className="empty-icon">🤷</div>
@@ -256,6 +311,148 @@ export default function SearchResultsPage() {
                     <Link href="/search" className="btn btn-primary">Nova Busca</Link>
                 </div>
             ) : null}
+
+            {/* Detail Modal */}
+            {selectedLead && (
+                <>
+                    <div className="lead-modal-overlay" onClick={() => setSelectedLead(null)} />
+                    <div className="lead-modal">
+                        <button className="lead-modal-close" onClick={() => setSelectedLead(null)}>✕</button>
+
+                        {/* Photo header */}
+                        <div className="lead-modal-photo">
+                            {selectedLead.photo_url ? (
+                                <img src={selectedLead.photo_url} alt={selectedLead.name} />
+                            ) : (
+                                <div className="lead-photo-placeholder lead-photo-placeholder-lg">📍</div>
+                            )}
+                        </div>
+
+                        {/* Name + rating */}
+                        <div className="lead-modal-header">
+                            <h2>{selectedLead.name}</h2>
+                            {selectedLead.rating && (
+                                <span className="lead-modal-rating">⭐ {selectedLead.rating}</span>
+                            )}
+                        </div>
+
+                        {/* Details */}
+                        <div className="lead-modal-details">
+                            {selectedLead.phone && (
+                                <div className="lead-modal-row">
+                                    <span className="lead-modal-label">📞 Telefone</span>
+                                    <span className="lead-modal-value">{formatPhone(selectedLead.phone)}</span>
+                                </div>
+                            )}
+                            {(() => {
+                                if (!selectedLead.address) return null
+                                const parts = selectedLead.address.split(',').map(p => p.trim())
+                                const cepMatch = selectedLead.address.match(/\d{5}-?\d{3}/)
+                                const cep = cepMatch ? cepMatch[0] : null
+                                const cleaned = parts.filter(p => !p.match(/brasil/i) && !p.match(/\d{5}-?\d{3}/))
+
+                                let street = cleaned[0] || null
+                                let bairro = null
+                                let cidadeEstado = null
+
+                                if (cleaned.length >= 3) {
+                                    const part2 = cleaned[1] || ''
+                                    const part3 = cleaned[2] || ''
+                                    if (part2.includes(' - ')) {
+                                        const sub = part2.split(' - ')
+                                        street = cleaned[0] + ', ' + sub[0].trim()
+                                        bairro = sub.slice(1).join(' - ').trim() || null
+                                    } else {
+                                        bairro = part2 || null
+                                    }
+                                    cidadeEstado = part3 || null
+                                } else if (cleaned.length === 2) {
+                                    cidadeEstado = cleaned[1] || null
+                                }
+
+                                return (
+                                    <>
+                                        {street && (
+                                            <div className="lead-modal-row">
+                                                <span className="lead-modal-label">🏠 Rua</span>
+                                                <span className="lead-modal-value">{street}</span>
+                                            </div>
+                                        )}
+                                        {bairro && (
+                                            <div className="lead-modal-row">
+                                                <span className="lead-modal-label">🏘️ Bairro</span>
+                                                <span className="lead-modal-value">{bairro}</span>
+                                            </div>
+                                        )}
+                                        {cidadeEstado && (
+                                            <div className="lead-modal-row">
+                                                <span className="lead-modal-label">🌆 Município</span>
+                                                <span className="lead-modal-value">{cidadeEstado}</span>
+                                            </div>
+                                        )}
+                                        {cep && (
+                                            <div className="lead-modal-row">
+                                                <span className="lead-modal-label">📮 CEP</span>
+                                                <span className="lead-modal-value">{cep}</span>
+                                            </div>
+                                        )}
+                                    </>
+                                )
+                            })()}
+                            {selectedLead.website && (
+                                <div className="lead-modal-row">
+                                    <span className="lead-modal-label">🌐 Website</span>
+                                    <a
+                                        href={selectedLead.website}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="lead-modal-link"
+                                    >
+                                        {selectedLead.website.replace(/^https?:\/\//, '').slice(0, 35)}
+                                    </a>
+                                </div>
+                            )}
+                            {selectedLead.email_1 && (
+                                <div className="lead-modal-row">
+                                    <span className="lead-modal-label">✉️ E-mail</span>
+                                    <span className="lead-modal-value">{selectedLead.email_1}</span>
+                                </div>
+                            )}
+                            {selectedLead.email_2 && (
+                                <div className="lead-modal-row">
+                                    <span className="lead-modal-label">✉️ E-mail 2</span>
+                                    <span className="lead-modal-value">{selectedLead.email_2}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="lead-modal-actions">
+                            {selectedLead.phone && (
+                                <a
+                                    href={getWhatsAppLink(selectedLead.phone, selectedLead.name)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="btn-whatsapp lead-modal-btn"
+                                >
+                                    💬 WhatsApp
+                                </a>
+                            )}
+                            {selectedLead.address && (
+                                <a
+                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedLead.address)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="btn-maps lead-modal-btn"
+                                >
+                                    📍 Google Maps
+                                </a>
+                            )}
+                        </div>
+                    </div>
+                </>
+            )
+            }
         </>
     )
 }

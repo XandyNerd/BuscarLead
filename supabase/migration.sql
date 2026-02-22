@@ -56,9 +56,13 @@ CREATE TABLE IF NOT EXISTS leads (
   website TEXT,
   email_1 TEXT,
   email_2 TEXT,
+  photo_url TEXT,
   status TEXT DEFAULT 'novo',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migration: add photo_url to existing tables
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS photo_url TEXT;
 
 -- Índices para performance
 CREATE INDEX IF NOT EXISTS idx_searches_user_id ON searches(user_id);

@@ -81,6 +81,7 @@ export async function POST(request: Request) {
                     website: lead.website || null,
                     email_1: lead.email_1 || lead.email || (Array.isArray(lead.emails) ? lead.emails[0] : null) || null,
                     email_2: lead.email_2 || (Array.isArray(lead.emails) ? lead.emails[1] : null) || null,
+                    photo_url: lead.thumbnailUrl || lead.imageUrl || lead.photo_url || null,
                     status: 'novo',
                 }))
 
