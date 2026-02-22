@@ -12,7 +12,9 @@ export default function AppLayout({
         <div className="app-layout">
             <Sidebar />
             <main className="main-content">
-                {children}
+                <div className="main-wrapper">
+                    {children}
+                </div>
             </main>
         </div>
     )

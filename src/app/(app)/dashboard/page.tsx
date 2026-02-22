@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { QuickSearchForm } from '@/components/QuickSearchForm'
+import { RepeatSearchButton } from '@/components/RepeatSearchButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,12 +47,8 @@ export default async function DashboardPage() {
                 </div>
             </div>
 
-            {/* Nova Busca — standalone button */}
-            <div className="dashboard-action">
-                <Link href="/search" className="btn btn-primary btn-new-search">
-                    🔍 Nova Busca
-                </Link>
-            </div>
+            {/* Busca Rápida */}
+            <QuickSearchForm />
 
             {/* Buscas Recentes */}
             <div className="dashboard-section-title">
@@ -97,9 +95,12 @@ export default async function DashboardPage() {
                                             <td>{search.leads_count || 0}</td>
                                             <td>{new Date(search.created_at).toLocaleDateString('pt-BR')}</td>
                                             <td>
-                                                <Link href={`/search/${search.id}`} className="btn btn-secondary btn-sm">
-                                                    Ver mais
-                                                </Link>
+                                                <div style={{ display: 'flex' }}>
+                                                    <Link href={`/search/${search.id}`} className="btn btn-secondary btn-sm">
+                                                        Ver mais
+                                                    </Link>
+                                                    <RepeatSearchButton searchId={search.id} />
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -131,9 +132,12 @@ export default async function DashboardPage() {
                                         <span className="search-card-value">{new Date(search.created_at).toLocaleDateString('pt-BR')}</span>
                                     </div>
                                 </div>
-                                <Link href={`/search/${search.id}`} className="btn btn-secondary search-card-btn">
-                                    Ver mais
-                                </Link>
+                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                                    <Link href={`/search/${search.id}`} className="btn btn-secondary search-card-btn" style={{ flex: 1, marginTop: 0 }}>
+                                        Ver mais
+                                    </Link>
+                                    <RepeatSearchButton searchId={search.id} />
+                                </div>
                             </div>
                         ))}
                     </div>

@@ -39,6 +39,40 @@ export default function SearchResultsPage() {
     const [loading, setLoading] = useState(true)
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
 
+    async function updateLeadStatus(leadId: string, newStatus: string) {
+        // Optimistic UI update
+        setLeads(current => current.map(l => l.id === leadId ? { ...l, status: newStatus } : l))
+        if (selectedLead && selectedLead.id === leadId) {
+            setSelectedLead({ ...selectedLead, status: newStatus })
+        }
+
+        try {
+            await fetch('/api/leads/status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lead_id: leadId, status: newStatus })
+            })
+        } catch (e) {
+            console.error('Failed to update status', e)
+        }
+    }
+
+    function handleWhatsAppClick(e: React.MouseEvent<HTMLAnchorElement>, url: string) {
+        e.preventDefault()
+        if (selectedLead && selectedLead.status !== 'contatado') {
+            updateLeadStatus(selectedLead.id, 'contatado')
+        }
+        window.open(url, '_blank', 'noopener,noreferrer')
+    }
+
+    function handleCloseModal() {
+        setSelectedLead(null)
+    }
+
+    function handleOpenModal(lead: Lead) {
+        setSelectedLead(lead)
+    }
+
     useEffect(() => {
         fetchData()
 
@@ -84,7 +118,6 @@ export default function SearchResultsPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchId])
 
-    // Lock body scroll when modal is open
     useEffect(() => {
         if (selectedLead) {
             document.body.style.overflow = 'hidden'
@@ -93,6 +126,18 @@ export default function SearchResultsPage() {
         }
         return () => { document.body.style.overflow = '' }
     }, [selectedLead])
+
+    function getStatusBadge(status: string) {
+        switch (status) {
+            case 'contatado':
+                return <span className="badge" style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', fontSize: '0.7rem' }}>🟢 Contatado</span>
+            case 'sem_interesse':
+                return <span className="badge" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', fontSize: '0.7rem' }}>🔴 Sem Interesse</span>
+            case 'novo':
+            default:
+                return <span className="badge" style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', fontSize: '0.7rem' }}>🟡 Novo</span>
+        }
+    }
 
     async function fetchData() {
         setLoading(true)
@@ -206,7 +251,7 @@ export default function SearchResultsPage() {
                                 </thead>
                                 <tbody>
                                     {leads.map((lead) => (
-                                        <tr key={lead.id} onClick={() => setSelectedLead(lead)} style={{ cursor: 'pointer' }}>
+                                        <tr key={lead.id} onClick={() => handleOpenModal(lead)} style={{ cursor: 'pointer' }}>
                                             <td>
                                                 <div className="lead-thumb">
                                                     {lead.photo_url ? (
@@ -219,9 +264,12 @@ export default function SearchResultsPage() {
                                             <td>
                                                 <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
                                                     {lead.name}
+                                                    <div style={{ marginTop: '4px' }}>
+                                                        {getStatusBadge(lead.status)}
+                                                    </div>
                                                 </div>
                                             </td>
-                                            <td>
+                                            <td data-label="Telefone">
                                                 <div style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
                                                     {formatPhone(lead.phone)}
                                                 </div>
@@ -254,19 +302,16 @@ export default function SearchResultsPage() {
                                             <td style={{ fontSize: '0.85rem', color: 'var(--color-primary-light)' }}>
                                                 {lead.email_1 || '—'}
                                             </td>
-                                            <td>
-                                                {lead.phone && (
-                                                    <a
-                                                        href={getWhatsAppLink(lead.phone, lead.name)}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="btn-whatsapp"
-                                                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
-                                                        onClick={(e) => e.stopPropagation()}
-                                                    >
-                                                        WhatsApp
-                                                    </a>
-                                                )}
+                                            <td data-label="Ação">
+                                                <button
+                                                    className="btn btn-sm"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        handleOpenModal(lead)
+                                                    }}
+                                                >
+                                                    Ver detalhes
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}
@@ -276,32 +321,37 @@ export default function SearchResultsPage() {
                     </div>
 
                     {/* Mobile: Photo cards grid */}
-                    <div className="mobile-only lead-cards-grid">
-                        {leads.map((lead) => (
-                            <div
-                                key={lead.id}
-                                className="lead-photo-card"
-                                onClick={() => setSelectedLead(lead)}
-                            >
-                                <div className="lead-photo-card-img">
-                                    {lead.photo_url ? (
-                                        <img src={lead.photo_url} alt={lead.name} />
-                                    ) : (
-                                        <div className="lead-photo-placeholder">📍</div>
-                                    )}
-                                    {lead.rating && (
-                                        <span className="lead-photo-rating">⭐ {lead.rating}</span>
-                                    )}
-                                </div>
-                                <div className="lead-photo-card-info">
-                                    <div className="lead-photo-card-name">{lead.name}</div>
-                                    <div className="lead-photo-card-location">
-                                        {lead.neighborhood || lead.city || '—'}
+                    < div className="mobile-only lead-cards-grid" >
+                        {
+                            leads.map((lead) => (
+                                <div
+                                    key={lead.id}
+                                    className="lead-photo-card"
+                                    onClick={() => handleOpenModal(lead)}
+                                >
+                                    <div className="lead-photo-card-img">
+                                        {lead.photo_url ? (
+                                            <img src={lead.photo_url} alt={lead.name} />
+                                        ) : (
+                                            <div className="lead-photo-placeholder">📍</div>
+                                        )}
+                                        {lead.rating && (
+                                            <span className="lead-photo-rating">⭐ {lead.rating}</span>
+                                        )}
+                                    </div>
+                                    <div className="lead-photo-card-info">
+                                        <div className="lead-photo-card-name" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                            {lead.name}
+                                            <div>{getStatusBadge(lead.status)}</div>
+                                        </div>
+                                        <div className="lead-photo-card-location">
+                                            {lead.neighborhood || lead.city || '—'}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
+                            ))
+                        }
+                    </div >
                 </>
             ) : search.status === 'concluido' ? (
                 <div className="empty-state">
@@ -310,148 +360,152 @@ export default function SearchResultsPage() {
                     <p>Tente buscar com termos diferentes ou outra cidade.</p>
                     <Link href="/search" className="btn btn-primary">Nova Busca</Link>
                 </div>
-            ) : null}
+            ) : null
+            }
 
             {/* Detail Modal */}
-            {selectedLead && (
-                <>
-                    <div className="lead-modal-overlay" onClick={() => setSelectedLead(null)} />
-                    <div className="lead-modal">
-                        <button className="lead-modal-close" onClick={() => setSelectedLead(null)}>✕</button>
+            {
+                selectedLead && (
+                    <>
+                        <div className="lead-modal-overlay" onClick={handleCloseModal} />
+                        <div className="lead-modal">
+                            <button className="lead-modal-close" onClick={handleCloseModal}>✕</button>
 
-                        {/* Photo header */}
-                        <div className="lead-modal-photo">
-                            {selectedLead.photo_url ? (
-                                <img src={selectedLead.photo_url} alt={selectedLead.name} />
-                            ) : (
-                                <div className="lead-photo-placeholder lead-photo-placeholder-lg">📍</div>
-                            )}
-                        </div>
+                            {/* Photo header */}
+                            <div className="lead-modal-photo">
+                                {selectedLead.photo_url ? (
+                                    <img src={selectedLead.photo_url} alt={selectedLead.name} />
+                                ) : (
+                                    <div className="lead-photo-placeholder lead-photo-placeholder-lg">📍</div>
+                                )}
+                            </div>
 
-                        {/* Name + rating */}
-                        <div className="lead-modal-header">
-                            <h2>{selectedLead.name}</h2>
-                            {selectedLead.rating && (
-                                <span className="lead-modal-rating">⭐ {selectedLead.rating}</span>
-                            )}
-                        </div>
-
-                        {/* Details */}
-                        <div className="lead-modal-details">
-                            {selectedLead.phone && (
-                                <div className="lead-modal-row">
-                                    <span className="lead-modal-label">📞 Telefone</span>
-                                    <span className="lead-modal-value">{formatPhone(selectedLead.phone)}</span>
+                            {/* Name + rating */}
+                            <div className="lead-modal-header">
+                                <div>
+                                    <h2 style={{ marginBottom: '6px' }}>{selectedLead.name}</h2>
+                                    {getStatusBadge(selectedLead.status)}
                                 </div>
-                            )}
-                            {(() => {
-                                if (!selectedLead.address) return null
-                                const parts = selectedLead.address.split(',').map(p => p.trim())
-                                const cepMatch = selectedLead.address.match(/\d{5}-?\d{3}/)
-                                const cep = cepMatch ? cepMatch[0] : null
-                                const cleaned = parts.filter(p => !p.match(/brasil/i) && !p.match(/\d{5}-?\d{3}/))
+                                {selectedLead.rating && (
+                                    <span className="lead-modal-rating">⭐ {selectedLead.rating}</span>
+                                )}
+                            </div>
 
-                                let street = cleaned[0] || null
-                                let bairro = null
-                                let cidadeEstado = null
+                            {/* Details */}
+                            <div className="lead-modal-details">
+                                {selectedLead.phone && (
+                                    <div className="lead-modal-row">
+                                        <span className="lead-modal-label">📞 Telefone</span>
+                                        <span className="lead-modal-value">{formatPhone(selectedLead.phone)}</span>
+                                    </div>
+                                )}
+                                {(() => {
+                                    if (!selectedLead.address) return null
+                                    const parts = selectedLead.address.split(',').map(p => p.trim())
+                                    const cepMatch = selectedLead.address.match(/\d{5}-?\d{3}/)
+                                    const cep = cepMatch ? cepMatch[0] : null
+                                    const cleaned = parts.filter(p => !p.match(/brasil/i) && !p.match(/\d{5}-?\d{3}/))
 
-                                if (cleaned.length >= 3) {
-                                    const part2 = cleaned[1] || ''
-                                    const part3 = cleaned[2] || ''
-                                    if (part2.includes(' - ')) {
-                                        const sub = part2.split(' - ')
-                                        street = cleaned[0] + ', ' + sub[0].trim()
-                                        bairro = sub.slice(1).join(' - ').trim() || null
-                                    } else {
-                                        bairro = part2 || null
+                                    let street = cleaned[0] || null
+                                    let bairro = null
+                                    let cidadeEstado = null
+
+                                    if (cleaned.length >= 3) {
+                                        const part2 = cleaned[1] || ''
+                                        const part3 = cleaned[2] || ''
+                                        if (part2.includes(' - ')) {
+                                            const sub = part2.split(' - ')
+                                            street = cleaned[0] + ', ' + sub[0].trim()
+                                            bairro = sub.slice(1).join(' - ').trim() || null
+                                        } else {
+                                            bairro = part2 || null
+                                        }
+                                        cidadeEstado = part3 || null
+                                    } else if (cleaned.length === 2) {
+                                        cidadeEstado = cleaned[1] || null
                                     }
-                                    cidadeEstado = part3 || null
-                                } else if (cleaned.length === 2) {
-                                    cidadeEstado = cleaned[1] || null
-                                }
 
-                                return (
-                                    <>
-                                        {street && (
-                                            <div className="lead-modal-row">
-                                                <span className="lead-modal-label">🏠 Rua</span>
-                                                <span className="lead-modal-value">{street}</span>
-                                            </div>
-                                        )}
-                                        {bairro && (
-                                            <div className="lead-modal-row">
-                                                <span className="lead-modal-label">🏘️ Bairro</span>
-                                                <span className="lead-modal-value">{bairro}</span>
-                                            </div>
-                                        )}
-                                        {cidadeEstado && (
-                                            <div className="lead-modal-row">
-                                                <span className="lead-modal-label">🌆 Município</span>
-                                                <span className="lead-modal-value">{cidadeEstado}</span>
-                                            </div>
-                                        )}
-                                        {cep && (
-                                            <div className="lead-modal-row">
-                                                <span className="lead-modal-label">📮 CEP</span>
-                                                <span className="lead-modal-value">{cep}</span>
-                                            </div>
-                                        )}
-                                    </>
-                                )
-                            })()}
-                            {selectedLead.website && (
-                                <div className="lead-modal-row">
-                                    <span className="lead-modal-label">🌐 Website</span>
+                                    return (
+                                        <>
+                                            {street && (
+                                                <div className="lead-modal-row">
+                                                    <span className="lead-modal-label">🏠 Rua</span>
+                                                    <span className="lead-modal-value">{street}</span>
+                                                </div>
+                                            )}
+                                            {bairro && (
+                                                <div className="lead-modal-row">
+                                                    <span className="lead-modal-label">🏘️ Bairro</span>
+                                                    <span className="lead-modal-value">{bairro}</span>
+                                                </div>
+                                            )}
+                                            {cidadeEstado && (
+                                                <div className="lead-modal-row">
+                                                    <span className="lead-modal-label">🌆 Município</span>
+                                                    <span className="lead-modal-value">{cidadeEstado}</span>
+                                                </div>
+                                            )}
+                                            {cep && (
+                                                <div className="lead-modal-row">
+                                                    <span className="lead-modal-label">📮 CEP</span>
+                                                    <span className="lead-modal-value">{cep}</span>
+                                                </div>
+                                            )}
+                                        </>
+                                    )
+                                })()}
+                                {selectedLead.website && (
+                                    <div className="lead-modal-row">
+                                        <span className="lead-modal-label">🌐 Website</span>
+                                        <a
+                                            href={selectedLead.website}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="lead-modal-link"
+                                        >
+                                            {selectedLead.website.replace(/^https?:\/\//, '').slice(0, 35)}
+                                        </a>
+                                    </div>
+                                )}
+                                {selectedLead.email_1 && (
+                                    <div className="lead-modal-row">
+                                        <span className="lead-modal-label">✉️ E-mail</span>
+                                        <span className="lead-modal-value">{selectedLead.email_1}</span>
+                                    </div>
+                                )}
+                                {selectedLead.email_2 && (
+                                    <div className="lead-modal-row">
+                                        <span className="lead-modal-label">✉️ E-mail 2</span>
+                                        <span className="lead-modal-value">{selectedLead.email_2}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Action buttons */}
+                            <div className="lead-modal-actions">
+                                {selectedLead.phone && (
                                     <a
-                                        href={selectedLead.website}
+                                        href={getWhatsAppLink(selectedLead.phone, selectedLead.name)}
+                                        onClick={(e) => handleWhatsAppClick(e, getWhatsAppLink(selectedLead.phone, selectedLead.name))}
+                                        className="btn-whatsapp lead-modal-btn"
+                                    >
+                                        💬 WhatsApp
+                                    </a>
+                                )}
+                                {selectedLead.address && (
+                                    <a
+                                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedLead.address)}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="lead-modal-link"
+                                        className="btn-maps lead-modal-btn"
                                     >
-                                        {selectedLead.website.replace(/^https?:\/\//, '').slice(0, 35)}
+                                        📍 Google Maps
                                     </a>
-                                </div>
-                            )}
-                            {selectedLead.email_1 && (
-                                <div className="lead-modal-row">
-                                    <span className="lead-modal-label">✉️ E-mail</span>
-                                    <span className="lead-modal-value">{selectedLead.email_1}</span>
-                                </div>
-                            )}
-                            {selectedLead.email_2 && (
-                                <div className="lead-modal-row">
-                                    <span className="lead-modal-label">✉️ E-mail 2</span>
-                                    <span className="lead-modal-value">{selectedLead.email_2}</span>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
-
-                        {/* Action buttons */}
-                        <div className="lead-modal-actions">
-                            {selectedLead.phone && (
-                                <a
-                                    href={getWhatsAppLink(selectedLead.phone, selectedLead.name)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="btn-whatsapp lead-modal-btn"
-                                >
-                                    💬 WhatsApp
-                                </a>
-                            )}
-                            {selectedLead.address && (
-                                <a
-                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedLead.address)}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="btn-maps lead-modal-btn"
-                                >
-                                    📍 Google Maps
-                                </a>
-                            )}
-                        </div>
-                    </div>
-                </>
-            )
+                    </>
+                )
             }
         </>
     )

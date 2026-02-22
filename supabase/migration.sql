@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS leads (
 
 -- Migration: add photo_url to existing tables
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS photo_url TEXT;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'novo';
 
 -- Índices para performance
 CREATE INDEX IF NOT EXISTS idx_searches_user_id ON searches(user_id);
