@@ -16,6 +16,7 @@ interface Lead {
     email_1: string | null
     email_2: string | null
     photo_url: string | null
+    photos: string[]
     status: string
     searches: {
         term: string
@@ -28,6 +29,7 @@ export default function LeadsPage() {
     const [leads, setLeads] = useState<Lead[]>([])
     const [loading, setLoading] = useState(true)
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
+    const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0)
 
     useEffect(() => {
         fetchLeads()
@@ -88,10 +90,26 @@ export default function LeadsPage() {
 
     function handleCloseModal() {
         setSelectedLead(null)
+        setCurrentPhotoIndex(0)
     }
 
     function handleOpenModal(lead: Lead) {
         setSelectedLead(lead)
+        setCurrentPhotoIndex(0)
+    }
+
+    function handleNextPhoto(e: React.MouseEvent) {
+        e.stopPropagation()
+        if (selectedLead && selectedLead.photos?.length > 0) {
+            setCurrentPhotoIndex((prev) => (prev + 1) % selectedLead.photos.length)
+        }
+    }
+
+    function handlePrevPhoto(e: React.MouseEvent) {
+        e.stopPropagation()
+        if (selectedLead && selectedLead.photos?.length > 0) {
+            setCurrentPhotoIndex((prev) => (prev - 1 + selectedLead.photos.length) % selectedLead.photos.length)
+        }
     }
 
     function getStatusBadge(status: string) {
@@ -268,9 +286,24 @@ export default function LeadsPage() {
                     <div className="lead-modal">
                         <button className="lead-modal-close" onClick={handleCloseModal}>✕</button>
 
-                        {/* Photo header */}
+                        {/* Photo header / Carousel */}
                         <div className="lead-modal-photo">
-                            {selectedLead.photo_url ? (
+                            {selectedLead.photos && selectedLead.photos.length > 0 ? (
+                                <>
+                                    <img src={selectedLead.photos[currentPhotoIndex]} alt={`${selectedLead.name} - foto ${currentPhotoIndex + 1}`} />
+                                    {selectedLead.photos.length > 1 && (
+                                        <>
+                                            <button className="carousel-btn prev" onClick={handlePrevPhoto}>❮</button>
+                                            <button className="carousel-btn next" onClick={handleNextPhoto}>❯</button>
+                                            <div className="carousel-indicators">
+                                                {selectedLead.photos.map((_, idx) => (
+                                                    <span key={idx} className={`indicator ${idx === currentPhotoIndex ? 'active' : ''}`} />
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
+                                </>
+                            ) : selectedLead.photo_url ? (
                                 <img src={selectedLead.photo_url} alt={selectedLead.name} />
                             ) : (
                                 <div className="lead-photo-placeholder lead-photo-placeholder-lg">📍</div>
@@ -361,22 +394,24 @@ export default function LeadsPage() {
 
                         {/* Action buttons */}
                         <div className="lead-modal-actions">
-                            <a
-                                href={getWhatsAppLink(selectedLead.phone, selectedLead.name)}
-                                onClick={(e) => handleWhatsAppClick(e, getWhatsAppLink(selectedLead.phone, selectedLead.name))}
-                                className="btn-whatsapp lead-modal-btn"
-                            >
-                                💬 WhatsApp
-                            </a>
+                            {selectedLead.phone && (
+                                <a
+                                    href={getWhatsAppLink(selectedLead.phone, selectedLead.name)}
+                                    onClick={(e) => handleWhatsAppClick(e, getWhatsAppLink(selectedLead.phone, selectedLead.name))}
+                                    className="btn-whatsapp lead-modal-btn"
+                                >
+                                    💬 WhatsApp
+                                </a>
                             )}
-                            <a
-                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedLead.address)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="btn-maps lead-modal-btn"
-                            >
-                                📍 Google Maps
-                            </a>
+                            {selectedLead.address && (
+                                <a
+                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedLead.address)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="btn-maps lead-modal-btn"
+                                >
+                                    📍 Google Maps
+                                </a>
                             )}
                         </div>
                     </div>

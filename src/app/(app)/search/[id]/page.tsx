@@ -17,6 +17,7 @@ interface Lead {
     email_1: string | null
     email_2: string | null
     photo_url: string | null
+    photos: string[]
     status: string
 }
 
@@ -38,6 +39,7 @@ export default function SearchResultsPage() {
     const [leads, setLeads] = useState<Lead[]>([])
     const [loading, setLoading] = useState(true)
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
+    const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0)
 
     async function updateLeadStatus(leadId: string, newStatus: string) {
         // Optimistic UI update
@@ -67,10 +69,26 @@ export default function SearchResultsPage() {
 
     function handleCloseModal() {
         setSelectedLead(null)
+        setCurrentPhotoIndex(0)
     }
 
     function handleOpenModal(lead: Lead) {
         setSelectedLead(lead)
+        setCurrentPhotoIndex(0)
+    }
+
+    function handleNextPhoto(e: React.MouseEvent) {
+        e.stopPropagation()
+        if (selectedLead && selectedLead.photos?.length > 0) {
+            setCurrentPhotoIndex((prev) => (prev + 1) % selectedLead.photos.length)
+        }
+    }
+
+    function handlePrevPhoto(e: React.MouseEvent) {
+        e.stopPropagation()
+        if (selectedLead && selectedLead.photos?.length > 0) {
+            setCurrentPhotoIndex((prev) => (prev - 1 + selectedLead.photos.length) % selectedLead.photos.length)
+        }
     }
 
     useEffect(() => {
@@ -371,9 +389,24 @@ export default function SearchResultsPage() {
                         <div className="lead-modal">
                             <button className="lead-modal-close" onClick={handleCloseModal}>✕</button>
 
-                            {/* Photo header */}
+                            {/* Photo header / Carousel */}
                             <div className="lead-modal-photo">
-                                {selectedLead.photo_url ? (
+                                {selectedLead.photos && selectedLead.photos.length > 0 ? (
+                                    <>
+                                        <img src={selectedLead.photos[currentPhotoIndex]} alt={`${selectedLead.name} - foto ${currentPhotoIndex + 1}`} />
+                                        {selectedLead.photos.length > 1 && (
+                                            <>
+                                                <button className="carousel-btn prev" onClick={handlePrevPhoto}>❮</button>
+                                                <button className="carousel-btn next" onClick={handleNextPhoto}>❯</button>
+                                                <div className="carousel-indicators">
+                                                    {selectedLead.photos.map((_, idx) => (
+                                                        <span key={idx} className={`indicator ${idx === currentPhotoIndex ? 'active' : ''}`} />
+                                                    ))}
+                                                </div>
+                                            </>
+                                        )}
+                                    </>
+                                ) : selectedLead.photo_url ? (
                                     <img src={selectedLead.photo_url} alt={selectedLead.name} />
                                 ) : (
                                     <div className="lead-photo-placeholder lead-photo-placeholder-lg">📍</div>
